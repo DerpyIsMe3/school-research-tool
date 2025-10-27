@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Study Hub</title>
+    <style>
+        body { margin: 0; font-family: Arial; background: #f5f5f5; }
+        #nav { padding: 15px; background: #2c3e50; color: white; }
+        #urlInput { width: 60%; padding: 8px; border: none; border-radius: 4px; }
+        #goBtn { padding: 8px 15px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        #frame { width: 100%; height: calc(100vh - 60px); border: none; background: white; }
+        #loader { display: none; color: #3498db; padding: 10px; }
+    </style>
+</head>
+<body>
+    <div id="nav">
+        <input type="text" id="urlInput" placeholder="Enter study resource URL (e.g., poki.com)">
+        <button id="goBtn">Study</button>
+        <span id="loader">Loading...</span>
+    </div>
+    <iframe id="frame" sandbox="allow-scripts allow-forms allow-same-origin allow-popups"></iframe>
+
+    <script>
+        document.getElementById('goBtn').addEventListener('click', loadSite);
+        document.getElementById('urlInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') loadSite();
+        });
+
+        async function loadSite() {
+            const input = document.getElementById('urlInput').value.trim();
+            const frame = document.getElementById('frame');
+            const loader = document.getElementById('loader');
+            
+            if (!input) return;
+            
+            loader.style.display = 'inline';
+            frame.style.display = 'none';
+
+            try {
+                let targetUrl = input;
+                if (!targetUrl.startsWith('http')) {
+                    targetUrl = 'https://' + targetUrl;
+                }
+
+                // Use a rotating list of public CORS proxies
+                const proxies = [
+                    'https://api.codetabs.com/v1/proxy?quest=',
+                    'https://corsproxy.io/?',
+                    'https://thingproxy.freeboard.io/fetch/'
+                ];
+                
+                let success = false;
+                for (let proxy of proxies) {
+                    try {
+                        const response = await fetch(proxy + encodeURIComponent(targetUrl));
+                        if (response.ok) {
+                            const html = await response.text();
+                            
+                            // Create a blob URL with the HTML content
+                            const blob = new Blob([html], { type: 'text/html' });
+                            const blobUrl = URL.createObjectURL(blob);
+                            
+                            frame.src = blobUrl;
+                            frame.style.display = 'block';
+                            loader.style.display = 'none';
+                            success = true;
+                            break;
+                        }
+                    } catch (e) {
+                        continue;
+                    }
+                }
+                
+                if (!success) {
+                    loader.innerHTML = 'Failed to load. Try another site.';
+                }
+                
+            } catch (error) {
+                loader.innerHTML = 'Error loading site';
+            }
+        }
+
+        // Register service worker for additional bypass capabilities
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(console.error);
+        }
+    </script>
+</body>
+</html>
